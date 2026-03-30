@@ -1,0 +1,227 @@
+--// DARKSTAR PRIOR EXTINCTION PRO
+
+local player = game.Players.LocalPlayer
+local rs = game:GetService("RunService")
+local vu = game:GetService("VirtualUser")
+
+--// ESTADOS
+local Toggles = {
+    FossilFarm = false,
+    EggFarm = false,
+    AutoEat = false,
+    AutoHeal = false,
+    Safe = false,
+    AntiAFK = false,
+    XrayPlayers = false,
+    XrayFossils = false,
+    XrayEggs = false
+}
+
+--// BASE
+local function getRoot()
+    local c = player.Character or player.CharacterAdded:Wait()
+    return c:FindFirstChild("HumanoidRootPart")
+end
+
+local function getHum()
+    local c = player.Character or player.CharacterAdded:Wait()
+    return c:FindFirstChild("Humanoid")
+end
+
+local function notify(txt)
+    game.StarterGui:SetCore("SendNotification", {
+        Title = "🦕 DarkStar",
+        Text = txt,
+        Duration = 3
+    })
+end
+
+--// ===== ANTI AFK =====
+player.Idled:Connect(function()
+    if Toggles.AntiAFK then
+        vu:Button2Down(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
+        task.wait(1)
+        vu:Button2Up(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
+    end
+end)
+
+--// ===== FÓSSEIS =====
+local function getFossils()
+    local t = {}
+    for _,v in pairs(workspace:GetDescendants()) do
+        if v:IsA("BasePart") then
+            local n = v.Name:lower()
+            if n:find("fossil") then
+                table.insert(t,v)
+            end
+        end
+    end
+    return t
+end
+
+local function getFossilType(name)
+    name = name:lower()
+    if name:find("small") then return "Pequeno"
+    elseif name:find("medium") then return "Médio"
+    elseif name:find("large") then return "Grande"
+    else return "Desconhecido" end
+end
+
+--// ===== OVOS =====
+local function getEggs()
+    local t = {}
+    for _,v in pairs(workspace:GetDescendants()) do
+        if v:IsA("BasePart") then
+            local n = v.Name:lower()
+            if n:find("egg") then
+                table.insert(t,v)
+            end
+        end
+    end
+    return t
+end
+
+--// ===== X-RAY =====
+local highlights = {}
+
+local function clearXray()
+    for _,h in pairs(highlights) do
+        if h then h:Destroy() end
+    end
+    highlights = {}
+end
+
+local function createESP(obj, color, text)
+    local h = Instance.new("Highlight")
+    h.FillColor = color
+    h.OutlineColor = color
+    h.Parent = obj
+
+    local bill = Instance.new("BillboardGui", obj)
+    bill.Size = UDim2.new(0,200,0,40)
+    bill.AlwaysOnTop = true
+    bill.StudsOffset = Vector3.new(0,3,0)
+
+    local txt = Instance.new("TextLabel", bill)
+    txt.Size = UDim2.new(1,0,1,0)
+    txt.BackgroundTransparency = 1
+    txt.Text = text
+    txt.TextScaled = true
+    txt.TextColor3 = color
+
+    table.insert(highlights,h)
+    table.insert(highlights,bill)
+end
+
+--// ===== LOOP PRINCIPAL =====
+task.spawn(function()
+    while true do
+        local root = getRoot()
+        local hum = getHum()
+
+        -- AUTO HEAL / SAFE
+        if hum then
+            if Toggles.AutoHeal and hum.Health < hum.MaxHealth then
+                hum.Health = hum.MaxHealth
+            end
+
+            if Toggles.Safe then
+                hum.Health = hum.MaxHealth
+            end
+        end
+
+        -- AUTO FOOD
+        if Toggles.AutoEat and hum then
+            hum:SetAttribute("Hunger",100)
+            hum:SetAttribute("Thirst",100)
+        end
+
+        -- FOSSIL FARM
+        if Toggles.FossilFarm and root then
+            for _,f in pairs(getFossils()) do
+                local n = f.Name:lower()
+                if n:find("medium") or n:find("large") then
+                    root.CFrame = f.CFrame + Vector3.new(0,3,0)
+                    task.wait(0.4)
+                end
+            end
+        end
+
+        -- EGG FARM
+        if Toggles.EggFarm and root then
+            for _,egg in pairs(getEggs()) do
+                notify("🥚 "..egg.Name)
+                root.CFrame = egg.CFrame + Vector3.new(0,3,0)
+                task.wait(0.5)
+            end
+        end
+
+        -- XRAY
+        clearXray()
+
+        if Toggles.XrayPlayers then
+            for _,p in pairs(game.Players:GetPlayers()) do
+                if p ~= player and p.Character then
+                    createESP(p.Character, Color3.fromRGB(0,200,255), p.Name)
+                end
+            end
+        end
+
+        if Toggles.XrayFossils then
+            for _,f in pairs(getFossils()) do
+                createESP(f, Color3.fromRGB(255,140,0),
+                    "🦴 "..getFossilType(f.Name))
+            end
+        end
+
+        if Toggles.XrayEggs then
+            for _,e in pairs(getEggs()) do
+                createESP(e, Color3.fromRGB(255,255,0),
+                    "🥚 "..e.Name)
+            end
+        end
+
+        task.wait(2)
+    end
+end)
+
+--// ===== UI =====
+local gui = Instance.new("ScreenGui", player.PlayerGui)
+
+local frame = Instance.new("Frame", gui)
+frame.Size = UDim2.new(0,320,0,400)
+frame.Position = UDim2.new(0.5,-160,0.5,-200)
+frame.BackgroundColor3 = Color3.fromRGB(10,10,15)
+frame.Active = true
+frame.Draggable = true
+
+local title = Instance.new("TextLabel", frame)
+title.Size = UDim2.new(1,0,0,40)
+title.Text = "🌌 DARKSTAR PRIOR"
+title.BackgroundTransparency = 1
+title.TextColor3 = Color3.fromRGB(0,255,180)
+title.Font = Enum.Font.GothamBold
+
+local function toggleBtn(text, y, key)
+    local b = Instance.new("TextButton", frame)
+    b.Size = UDim2.new(1,-20,0,35)
+    b.Position = UDim2.new(0,10,0,y)
+    b.Text = text.." OFF"
+
+    b.MouseButton1Click:Connect(function()
+        Toggles[key] = not Toggles[key]
+        b.Text = text.." "..(Toggles[key] and "ON" or "OFF")
+    end)
+end
+
+toggleBtn("Auto Fossil",50,"FossilFarm")
+toggleBtn("Auto Eggs",90,"EggFarm")
+toggleBtn("Auto Eat",130,"AutoEat")
+toggleBtn("Auto Heal",170,"AutoHeal")
+toggleBtn("Safe Mode",210,"Safe")
+toggleBtn("Anti AFK",250,"AntiAFK")
+toggleBtn("Xray Players",290,"XrayPlayers")
+toggleBtn("Xray Fossils",330,"XrayFossils")
+toggleBtn("Xray Eggs",370,"XrayEggs")
+
+notify("DarkStar carregado!")
